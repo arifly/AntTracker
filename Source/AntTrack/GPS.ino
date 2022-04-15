@@ -3,7 +3,7 @@
   
   #include <TinyGPS++.h>
 
-  #define inSerial             Serial1  
+  #define inSerial             Serial1
 
   TinyGPSPlus inGPS;
 
@@ -147,11 +147,12 @@ void  getTrackerboxLocation()  {
   uint16_t yyyy = 0;
   float hdop = 0;
   static bool got_data = false;
-  
+  //Log.print(".");
   while (gpsSerial.available() > 0) {
     if (tboxGPS.encode(gpsSerial.read())) {
-  
+      //Log.print("g");
       if (tboxGPS.location.isValid())  {
+        //Log.print("p");
         hom.lat = tboxGPS.location.lat();
         hom.lon = tboxGPS.location.lng();
         hom.alt = tboxGPS.altitude.meters();

@@ -5,6 +5,8 @@
 //
 //================================================================================================= 
 //=================================================================================================   
+// -------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------
 
 String TimeString (unsigned long epoch){
  uint8_t hh = (epoch  % 86400L) / 3600;   // remove the days (86400 secs per day) and div the remainer to get hrs
@@ -209,7 +211,7 @@ void PrintMavBuffer(int lth){
   Log.println();
 }
 //=================================================================================================  
-void PrintFrsBuffer(byte *buf, uint8_t len){
+void PrintFrsBuffer(byte *buf, uint8_t len) {
   Log.print("len:"); Log.print(len); Log.print("  ");
   for ( int i = 0; i < len; i++ ) {
     Printbyte(buf[i], false, ' ');
@@ -807,7 +809,36 @@ void WiFiEventHandler(WiFiEvent_t event)  {
       
       //Log.printf("busy=%d  new=%d log=%d  bounce=%d  info=%d\n", infoPressBusy, infoNewPress, show_log, info_debounce_millis, info_millis); 
       
-     #if ((defined ESP32) || (defined ESP8266))   // Teensy does not have touch pins          
+     #if ((defined ESP32) || (defined ESP8266))   // Teensy does not have touch pins      arito
+        #if (defined XPT2046_TS)
+          //Log.println("T");
+          bool istouched = ts.touched();
+          if (istouched) {
+            TS_Point p = ts.getPoint();
+            if (!wastouched) {
+//              Log.println("Touch");
+//              Log.print(", z = ");
+//              Log.print(p.z);
+//              Log.print(", x = ");
+//              Log.print(p.x);
+//              Log.print(", y = ");
+//              Log.println(p.y);
+              if ((p.x < 1600) && (p.z <1000)){
+                infoButton = true;
+              }
+              if ((p.y < 2000) && (p.z <1000)){
+                Scroll_Display(up);
+              }
+              if ((p.y > 2000) && (p.z <1000)) {
+                Scroll_Display(down);
+              }
+            }
+          }
+           if (millis() - last_log_millis > 100) { 
+            wastouched = istouched;
+           }
+         #endif      
+        
       if ( (Tup != 99) && (Tdn != 99) ) {         // if ESP touch pin-pair enumerated
         if (upButton) {
           Scroll_Display(up);
@@ -843,6 +874,11 @@ void WiFiEventHandler(WiFiEvent_t event)  {
     void IRAM_ATTR gotButtonInfo(){
       infoButton = true;
     }
+    //void IRAM_ATTR gotTouchS(){
+    //  ts.readData(&x, &y, &z);
+    //}
+     
+    
     #endif 
     //===================================
    
@@ -873,10 +909,10 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           display_mode = logg; 
       }  
      
-        #if (defined ST7789_Display) || (defined SSD1331_Display) ||  (defined ILI9341_Display)   
+        #if (defined ST7789_Display) || (defined SSD1331_Display) ||  (defined ILI9341_Display) || (defined ST7735_Display) 
         //  hardware SPI pins defined in config.h 
           display.fillScreen(SCR_BACKGROUND);                 
-        #elif (defined SSD1306_Display) 
+        #elif (defined SSD1306_Display)
           display.clearDisplay();
         #endif  
         display.setCursor(0,0);  
@@ -893,7 +929,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           display.println(ScreenRow[i].x);
         }
    
-        #if (defined SSD1306_Display)
+        #if (defined SSD1306_Display) 
           display.display();
         #endif 
     }
@@ -1174,7 +1210,9 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           #if (defined SSD1306_Display) 
             yy = 1.2 * char_h_px;  
           #elif (defined SSD1331_Display)
-            yy = 1.1 * char_h_px;            
+            yy = 1.1 * char_h_px;
+          #elif (defined ST7735_Display) 
+            yy = 1.4 * char_h_px;            
           #elif (defined ST7789_Display)   
             yy = 1.8 * char_h_px;  
           #endif  
@@ -1189,6 +1227,8 @@ void WiFiEventHandler(WiFiEvent_t event)  {
             yy = 1.2 * char_h_px;  
           #elif (defined SSD1331_Display)
             yy = 1.1 * char_h_px;            
+          #elif (defined ST7735_Display) 
+            yy = 1.4 * char_h_px;            
           #elif (defined ST7789_Display)   
             yy = 1.8 * char_h_px;  
           #endif  
@@ -1203,6 +1243,8 @@ void WiFiEventHandler(WiFiEvent_t event)  {
             yy = 2.4 * char_h_px;  
           #elif (defined SSD1331_Display)
             yy = 2.2 * char_h_px;               
+          #elif (defined ST7735_Display) 
+            yy = 2.8 * char_h_px;            
           #elif (defined ST7789_Display)   
             yy = 3.6 * char_h_px;  
           #endif               
@@ -1217,6 +1259,8 @@ void WiFiEventHandler(WiFiEvent_t event)  {
             yy = 2.4 * char_h_px;  
           #elif (defined SSD1331_Display)
             yy = 2.2 * char_h_px;               
+          #elif (defined ST7735_Display) 
+            yy = 2.8 * char_h_px;            
           #elif (defined ST7789_Display)   
             yy = 3.6 * char_h_px;  
           #endif               
@@ -1230,7 +1274,9 @@ void WiFiEventHandler(WiFiEvent_t event)  {
           #if (defined SSD1306_Display) 
             yy = 3.6 * char_h_px;  
           #elif (defined SSD1331_Display)
-            yy = 3.3 * char_h_px;                
+            yy = 3.3 * char_h_px;  
+          #elif (defined ST7735_Display) 
+            yy = 4.0 * char_h_px;            
           #elif (defined ST7789_Display)   
             yy = 5.4 * char_h_px;  
           #endif            
@@ -1264,7 +1310,15 @@ void WiFiEventHandler(WiFiEvent_t event)  {
             snprintf(snprintf_buf, snp_max, "Lon %3.7f", cur.lon);  
             display.fillRect(xx+(4*char_w_px), yy, 12 * char_w_px, char_h_px, SCR_BACKGROUND); // clear lon
             display.println(snprintf_buf); 
-                                                                  
+          #elif (defined ST7735_Display)         
+            yy = 6.0 * char_h_px;  
+            display.setCursor(xx,yy);       
+            snprintf(snprintf_buf, snp_max, "Lat %3.7f Lon %3.7f", cur.lat, cur.lon);        
+            SetScreenSizeOrient(TEXT_SIZE -1, SCR_ORIENT);  // small text size       
+            display.fillRect(xx+(4*char_w_px), yy, 12 * char_w_px, char_h_px, SCR_BACKGROUND); // clear the previous data 
+            display.fillRect(xx+(16*char_w_px), yy, 12 * char_w_px, char_h_px, SCR_BACKGROUND); 
+            display.println(snprintf_buf);  
+            SetScreenSizeOrient(TEXT_SIZE, SCR_ORIENT);  // restore text size           
           #elif (defined ST7789_Display)         
             yy = 7.2 * char_h_px;  
             display.setCursor(xx,yy);       
@@ -1287,7 +1341,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
 
       SetScreenSizeOrient(TEXT_SIZE, SCR_ORIENT);
        
-      #if (defined ST7789_Display)      // LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
+      #if (defined ST7789_Display || defined ST7735_Display)      // LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
         #if (SCR_ORIENT == 0)           // portrait
           display.setRotation(0);       // or 4 
           display.setTextFont(0);       // Original Adafruit font 0, try 0 thru 6 
@@ -1303,7 +1357,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
         //display.setTextColor(TFT_BLUE);  
         //display.setTextColor(TFT_GREEN, TFT_BLACK);
     
-      #elif (defined SSD1306_Display)            // all  boards with SSD1306 OLED display
+      #elif (defined SSD1306_Display)           // all  boards with SSD1306 OLED display
         display.clearDisplay(); 
         display.setTextColor(WHITE);     
              
@@ -1333,7 +1387,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
 
       SetScreenSizeOrient(TEXT_SIZE, SCR_ORIENT);
 
-      #if (defined ST7789_Display)      // LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
+      #if (defined ST7789_Display || defined ST7735_Display)      // LILYGO® TTGO T-Display ESP32 1.14" ST7789 Colour LCD
         #if (SCR_ORIENT == 0)           // portrait
           SetScreenSizeOrient(1, 0);    // change text size
           display.setTextSize(1);       // and font
@@ -1350,7 +1404,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
         //display.setTextColor(TFT_BLUE);  
         //display.setTextColor(TFT_GREEN, TFT_BLACK);
     
-      #elif (defined SSD1306_Display)            // all  boards with SSD1306 OLED display    
+      #elif (defined SSD1306_Display)           // all  boards with SSD1306 OLED display    
         display.clearDisplay(); 
         display.setTextColor(WHITE);  
 
@@ -1484,7 +1538,7 @@ void WiFiEventHandler(WiFiEvent_t event)  {
     #if defined displaySupport       
     void SetScreenSizeOrient(uint8_t txtsz, uint8_t scr_orient) {
 
-      #if (defined SSD1306_Display) || (defined SSD1331_Display)   // rotation arguement depends on display type
+      #if (defined SSD1306_Display) || (defined SSD1331_Display)  // rotation arguement depends on display type
         if (scr_orient == 0) {          // portrait
           display.setRotation(1);              
           scr_h_px = SCR_H_PX;
@@ -1549,47 +1603,4 @@ void WiFiEventHandler(WiFiEvent_t event)  {
      if (ang < 0) ang += 360;
      if (ang > 359) ang -= 360;
      return ang;
-   }
-   
-  //================================================================================================= 
-  //                              S E N S O R    A L I G N M E N T
-  //=================================================================================================
-  // params: 
-  // int val -> angle value in degrees
-  // unit8_t rotation -> rotation enum definition value, fe CW180_DEG
-  int applySensorAlignment(int val, uint8_t rotation) {
-    int res = 0;
-    
-    switch (rotation) {
-    default:
-    case CW0_DEG:
-    case ALIGN_DEFAULT:
-    case CW180_DEG_FLIP:
-        res = val;
-        break;
-    case CW90_DEG:
-        res = val + 90;
-        break;
-    case CW180_DEG:
-        res = val + 180;
-        break;
-    case CW270_DEG:
-        res = val + 270;
-        break;
-    case CW0_DEG_FLIP:
-        res = val + 180;
-        break;
-    case CW90_DEG_FLIP:
-        res = val + 270;
-        break;
-    case CW270_DEG_FLIP:
-        res = val + 90;
-        break;
-    }
-    
-    if (res > 360) {
-      res = res - 360;
-    }
-
-    return  res;
-  }
+   }     

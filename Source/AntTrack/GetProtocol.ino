@@ -2,6 +2,7 @@
 #if ( (Telemetry_In == 0) || (Heading_Source == 4) )  //  Serial in or have Trackerbox GPS  
 uint16_t Lth=0;
 
+uint8_t CRSF = 0;
 uint8_t Mav1 = 0;
 uint8_t Mav2 = 0;
 uint8_t SPort = 0;
@@ -40,6 +41,20 @@ uint16_t detectProtocol(uint32_t baud) {
   
     chr = NxtChar();
     while (Lth>0) {  //  ignore 0x00 for this routine
+
+
+
+// aj CSRF
+      if (chr==0xA7)                             // Could be S.Port or F.Port1
+        if (ch[1]==0x7E) {                       // must be FPort1
+          CRSF++;
+          if (CRSF>10) {
+            inSerial.end();
+            return 9;    
+          }
+        }
+// aj      
+
       
       if (chr==0xFE) {   
         int pl = NxtChar();   // Payload length
@@ -137,6 +152,7 @@ uint16_t detectProtocol(uint32_t baud) {
       
     }
    delay(5); 
+   return(99);
 }
 
 //***************************************************

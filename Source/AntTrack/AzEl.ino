@@ -26,8 +26,16 @@ void getAzEl(const struct Location &hom, const struct Location &cur){
   
   float lon1 = hom.lon / 180 * PI;  // Degrees to radians
   float lat1 = hom.lat / 180 * PI;
-  float lon2 = cur.lon / 180 * PI;
-  float lat2 = cur.lat / 180 * PI;
+  //float lon2 = cur.lon / 180 * PI;
+  //float lat2 = cur.lat / 180 * PI;
+
+   #if (Telemetry_In == 5) 
+      float lon2 = cur.lon;
+      float lat2 = cur.lat;
+   #else
+      float lon2 = cur.lon / 180 * PI;
+      float lat2 = cur.lat / 180 * PI;
+   #endif
 
   //Calculate azimuth
   a=atan2(sin(lon2-lon1)*cos(lat2), cos(lat1)*sin(lat2)-sin(lat1)*cos(lat2)*cos(lon2-lon1));

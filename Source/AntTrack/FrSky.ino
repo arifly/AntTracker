@@ -75,7 +75,7 @@
     uint32_t pt_rssi; 
 
 
-#if (Telemetry_In == 0) || (Telemetry_In == 3) ||  (Telemetry_In == 4)    //  FrSky (Serial, UDP or BT)
+#if (Telemetry_In == 0) || (Telemetry_In == 3) ||  (Telemetry_In == 4) ||  (Telemetry_In == 5)   //  FrSky (Serial, UDP or BT)
 
   bool lonGood = false;
   bool latGood = false;
@@ -466,7 +466,7 @@
       }          // end of FPort2
 
       // No start/stop 
-
+     return false;  
     }
 
     //===================================================================   

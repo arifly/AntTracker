@@ -19,9 +19,7 @@ GitHub Tag
 v2.19.5  2022-01-09 Define hud offset   
 v2.19.6  2022-01-19 Add HUD support for iNav, part 1                                             
 v2.19.7  2022-01-20 Add iNav speed, pitch and roll for HUD 
-v2.19.7             Add climb  
-v2.19.8  2022-03-09 Merge Bohan's code for box compass alignment.
-                    Arrange Library folders            
+v2.19.7             Add climb                
 */
 //=============================================================================================
 //=====================   S E L E C T   E S P   B O A R D   V A R I A N T   ===================
@@ -44,18 +42,19 @@ v2.19.8  2022-03-09 Merge Bohan's code for box compass alignment.
 //======================  I N P U T   C H A N N E L       How does telemetry enter the tracker?
 //=============================================================================================
 // Choose one only of these input channels 
-#define Telemetry_In  0    // Serial Port (default) - all protocols        
+//#define Telemetry_In  0    // Serial Port (default) - all protocols        
 //#define Telemetry_In  1    // Mavlink BlueTooth Classic- ESP32 
 //#define Telemetry_In  2    // Mavlink WiFi - ESP only
 //#define Telemetry_In  3    // FrSky UDP - ESP only
 //#define Telemetry_In  4    // FrSky BT classic - ESP32 only
+#define Telemetry_In  5    // BlueTooth BLE - ESP32 only
 
 //=============================================================================================
 //================================  T E L E M E T R Y   P R O T O C O L  ======================
 //=============================================================================================
 // Select only one telemetry PROTOCOL here
 //#define PROTOCOL 0     // AUTO detect protocol
-#define PROTOCOL 1     // Mavlink 1
+//#define PROTOCOL 1     // Mavlink 1
 //#define PROTOCOL 2     // Mavlink 2
 //#define PROTOCOL 3     // FrSky S.Port
 //#define PROTOCOL 4     // FrSky F.Port 1
@@ -63,6 +62,7 @@ v2.19.8  2022-03-09 Merge Bohan's code for box compass alignment.
 //#define PROTOCOL 6     // LTM
 //#define PROTOCOL 7     // MSP
 //#define PROTOCOL 8     // GPS NMEA
+#define PROTOCOL 9     // CRSF
 
 //=============================================================================================
 //==================================  H E A D I N G   S O U R C E  ============================
@@ -70,24 +70,11 @@ v2.19.8  2022-03-09 Merge Bohan's code for box compass alignment.
 // Select one heading source. We need this to relate the external world of co-ordinates to the internal tracker co_ordinates.
 //#define Heading_Source  1     // 1=Flight Computer GPS, 
 //#define Heading_Source  2     // 2=Flight Computer Compass
-#define Heading_Source  3     // 3=Trackerbox_Compass 
-//#define Heading_Source  4     // 4=Trackerbox_GPS_And_Compass
-// Select GPS module serial link speed. Many GPS modules are capable of using multiple serial speed out from the box.
-// This information should be provided by the manufacturer.
-// If not defined, speed will be selected automatically.
-// #define Box_GPS_Baud 9600
+//#define Heading_Source  3     // 3=Trackerbox_Compass 
+#define Heading_Source  4     // 4=Trackerbox_GPS_And_Compass
 
-// Select compass type. This information should be provided by the manufacturer.
-//#define HMC5883L
-#define QMC5883L
-
-// Select compass declination. Consult http://www.magnetic-declination.com/  to check your zone declination value.
-//#define Compass_Declination -0.34
-
-// Select compass orientation. Many of the available GPS/Compass boards have their compass oriented in non-standart way,
-// the correct re-orientation information should be provided by the manufacturer.
-// Available options: ALIGN_DEFAULT, CW0_DEG, CW90_DEG, CW180_DEG, CW270_DEG, CW0_DEG_FLIP, CW90_DEG_FLIP, CW180_DEG_FLIP, CW270_DEG_FLIP
-//#define Compass_Rotation CW270_DEG_FLIP
+#define HMC5883L            // Select compass type
+//#define QMC5883L
 
 // If the tracker box has a GPS AND a compass attached, we support a moving tracker. For example,
 // the tracker could be on one moving vehicle and track a second moving vehicle, or a 'plane could 
@@ -114,6 +101,11 @@ const char* mavBT_Slave_Name   =   "Mavlink2BT"; //  "TARANISEP";  // Example
 //#define frsBT_Mode  2           // Slave Mode - passive, advertise our hostname & wait for master to connect to us
 const char* frsBT_Slave_Name   =   "Frs2BT"; 
 
+
+
+
+
+
 //=============================================================================================
 //=================================  O T H E R   S E T T I N G S   ============================
 //=============================================================================================
@@ -126,7 +118,7 @@ const char* frsBT_Slave_Name   =   "Frs2BT";
 //===================================  S E R V O   S E T T I N G S  ===========================
 //=============================================================================================
 
-  #define Test_Servos      // Move servos through their limits, then try box_hdg every 45 degrees of circle
+  //#define Test_Servos      // Move servos through their limits, then try box_hdg every 45 degrees of circle
 
   //#define Az_Servo_360   // Means the azimuth servo can point in a 360 deg circle, elevation servo 90 deg
                            // Default (comment out #define above) is 180 deg azimuth and flip over 180 deg elevation 
@@ -152,7 +144,7 @@ const char* frsBT_Slave_Name   =   "Frs2BT";
   // Sometimes the mechanical movement of a servo is reversed due to the orientation of its mounting
   // Its movement may be reversed here to compensate
   #define ReverseAzimuth          // my azimuth servo has a reversed action
-  //#define ReverseElevation
+  #define ReverseElevation
 
 
   // Default values for SG90 servos; 500 and 2400
@@ -165,10 +157,10 @@ const char* frsBT_Slave_Name   =   "Frs2BT";
     uint16_t minElPWM = 700;   // front 
     uint16_t maxElPWM = 2300;  // back
   #else
-    uint16_t minAzPWM = 625;   // right (because mine is reversed)
-    uint16_t maxAzPWM = 2235;  // left 
-    uint16_t minElPWM = 600;   // front
-    uint16_t maxElPWM = 2257;  // back  
+    uint16_t minAzPWM = 600;   // right (because mine is reversed) 625
+    uint16_t maxAzPWM = 2380;  // left  2235
+    uint16_t minElPWM = 620;   // front  600
+    uint16_t maxElPWM = 2300;  // back   2257
   #endif
 
 
@@ -178,17 +170,17 @@ const char* frsBT_Slave_Name   =   "Frs2BT";
 
 #define Start_WiFi                              // Start WiFi at startup, override startWiFi pin
 
-#define HostName             "Frs2BT"        // This translator's host name
+#define HostName             "QTrack"        // This translator's host name
 #define APssid               "AntTrackAP"     // The AP SSID that we advertise         ====>
 #define APpw                 "12345678"         // Change me! Must be >= 8 chars
 #define APchannel            9                  // The wifi channel to use for our AP
-#define STAssid              "FrSkyToWiFi"    // Target AP to connect to (in STA mode) <====
-#define STApw                "password"         // Target AP password (in STA mode). Must be >= 8 chars      
+#define STAssid              "FrSkyToWiFi"          // Target AP to connect to (in STA mode) <====
+#define STApw                "abcdpass"         // Target AP password (in STA mode). Must be >= 8 chars      
 
 // Choose one default mode for ESP only - AP means advertise as an access point (hotspot). STA means connect to a known host
 //#define WiFi_Mode   1  //AP            
-#define WiFi_Mode   2  // STA
-//#define WiFi_Mode   3  // (STA>AP) STA failover to AP 
+//#define WiFi_Mode   2  // STA
+#define WiFi_Mode   3  // (STA>AP) STA failover to AP 
 
 // Choose one default protocol - for ESP only
 //#define WiFi_Protocol 1    // TCP/IP
@@ -373,9 +365,9 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
    
   #if (ESP32_Variant == 1)          // ESP32 Dev Module
   uint8_t in_rxPin =        27;  // uart1
-  #define in_txPin          17 
-  uint8_t gps_rxPin =       13;  // uart2 for tracker box GPS if applicable
-  #define gps_txPin          4  
+  #define in_txPin          26 
+  uint8_t gps_rxPin =       16;  // uart2 for tracker box GPS if applicable
+  #define gps_txPin         17  
   bool rxInvert = true;          // ONLY FOR FrSky S.Port, NOT F.Port, NOT MAVLINK
   #define SetHomePin        34   // LOW == pushed    
   #define StatusLed         25   // Off=No good GPS yet, flashing=good GPS but home not set yet, solid = ready to track
@@ -514,13 +506,15 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
     #define SCL           14        // I2C OLED board
     #define display_i2c_addr      0x3C       // I2C OLED board
   #endif 
-  //========================================================================= 
+  //=======================================================================----------------------------------------------------------------== 
+
+// Arimod
    
   #if (ESP32_Variant == 7)          // ESP32 Dev Module with ILI9341 2.8" colour TFT SPI 240x320
-    uint8_t in_rxPin =        16;       // uart1 for general serial in, including flight gps
-    #define in_txPin          17 
-    uint8_t gps_rxPin =       13;       // uart2 for tracker box GPS if applicable
-    #define gps_txPin          4
+    uint8_t in_rxPin =        13;       // uart1 for general serial in, including flight gps
+    #define in_txPin           4 
+    uint8_t gps_rxPin =       16;       // uart2 for tracker box GPS if applicable
+    #define gps_txPin          17
     bool rxInvert = false;              // ONLY FOR FrSky S.Port, NOT F.Port, NOT MAVLINK
     #define SetHomePin         5
     #define StatusLed          2        // Add your own LED with around 1K series resistor
@@ -532,14 +526,19 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
       #define displaySupport
     #endif
     #define ILI9341_Display         // ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  
-    #define SCLK          18        // blue wire on my test setup
-    #define MOSI          23        // yellow wire
-    #define CS            25        // white wire
-    #define DC            26        // green wire  
-    #define RST           27        // brown wire
+    #define XPT2046_TS
+    #define NEOPIXEL
+    //#define ST7735_Display         // SST 2.8" TFT SPI 128x160 V1.2  
+    #define SCLK          18        // blue wire on my test setup   CLK
+    #define MOSI          23        // yellow wire   DIN
+    #define CS            25        // white wire    CS
+    #define DC            26        // green wire    DC
+    #define RST           27        // brown wire     
     // LED=3.3V,  Vcc=5v,  Gnd 
-    // MISO                not used by Adafruit     
-    
+     #define MISO         19        // touch --       not used by Adafruit     
+    #define CS_PIN        36
+    //#define TIRQ_PIN      39
+    #define WSLED_PIN     15
     /* Below please choose either Touch pin-pair or Digital pin-pair for display scrolling
      *  Pin == 99 means the pin-pair is not used
      */ 
@@ -551,9 +550,27 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
 
     #define SDA           21        // I2C for tracker box compass
     #define SCL           22        // I2C 
+    #define compass_i2c_addr      0x1E   // 0x1E for HMC5883L   0x0D for QMC5883
 
+    #define SSD1306_Display_Log
+    #define SDA2           33        // I2C for Log Display
+    #define SCL2           32        // I2C 
+    #define display_i2c_addr      0x3C     
+
+    #define VOLT_SENS
+    #define V_Sens_Pin    34
+    #define Beeper_Pin    35
+    
+    
   #endif     
 #endif
+
+  // ------------------------------- RGB LED ---------------------------------
+  #if defined NEOPIXEL
+    #include <Adafruit_NeoPixel.h>
+    #define NUMPIXELS 5     // LED 0 -> Levelshhifter
+    Adafruit_NeoPixel wsled(NUMPIXELS, WSLED_PIN, NEO_GRB + NEO_KHZ800);
+  #endif
 
   //=================================================================================================   
   //==================================  C O M P A S S    S U P P O R T ==============================  
@@ -567,7 +584,7 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
   //=================================================================================================  
 
   #if defined displaySupport
-    #if (!( (defined SSD1306_Display) || (defined SSD1331_Display) || (defined ST7789_Display) || (defined ILI9341_Display) ))
+    #if (!( (defined SSD1306_Display) || (defined SSD1331_Display) || (defined ST7789_Display) || (defined ILI9341_Display) || (defined ST7735_Display) ))
       #error please define a display type in your board variant configuration, or disable displaySupport
     #endif   
 
@@ -576,8 +593,9 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
     #endif  
     #if not defined Wire_Loaded
       #include <Wire.h>
-    #endif  
-    
+    #endif
+
+
     #if (ESP32_Variant == 6)
       // Generic colour definitions
       #define BLACK           0x0000
@@ -611,6 +629,7 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
     #elif (defined SSD1306_Display)    // SSD1306 OLED display     (128 x 64) 
       #include <Adafruit_GFX.h>
       #include <Adafruit_SSD1306.h> 
+      
       #define SCR_W_PX 64             // OLED display width, in pixels - always define in portrait
       #define SCR_H_PX 128            // OLED display height, in pixels
       #define SCR_ORIENT  1           // landscape
@@ -623,9 +642,15 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
  
       #ifndef OLED_RESET
         #define OLED_RESET    -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-      #endif  
-      Adafruit_SSD1306 display(SCR_H_PX, SCR_W_PX, &Wire, OLED_RESET); // 128, 64
-      #define SCR_BACKGROUND BLACK      
+      #endif
+      #if (defined SSD1306_Display)  
+        Adafruit_SSD1306 display(SCR_H_PX, SCR_W_PX, &Wire, OLED_RESET); // 128, 64
+        #define SCR_BACKGROUND BLACK  
+      #elif (defined SSD1306_Display_Log)   
+        Adafruit_SSD1306 display(SCR_H_PX, SCR_W_PX, &Wire, OLED_RESET); // 128, 64
+      #endif
+        
+          
     //==========================================================  
     #elif (defined SSD1331_Display)    // SSD1331 0.95" TTGO T2 colour TFT display (96 x 64)
       #include <Adafruit_GFX.h>
@@ -642,6 +667,10 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
     #elif  (defined ILI9341_Display)    // ILI9341 2.8" COLOUR TFT SPI 240x320 V1.2  
       #include "Adafruit_GFX.h"   
       #include "Adafruit_ILI9341.h"
+      #if (defined XPT2046_TS) // ari touch
+        #include <XPT2046_Touchscreen.h>
+        XPT2046_Touchscreen ts(CS_PIN);  // Param 2 - NULL - No interrupts , TIRQ_PIN
+      #endif
       // Uses hardware SPI
       
       Adafruit_ILI9341 display = Adafruit_ILI9341(CS, DC, RST);    // LED=3.3V,  Vcc=5v,  Gnd 
@@ -653,8 +682,29 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
       #define SCR_H_PX  320   
       #define SCR_BACKGROUND ILI9341_BLUE  
       #define HUD_ARROW_OFFSET 999      // no offset=default, else degrees offset for hud arrow
-    #endif   
+
+    
     //==========================================================   
+
+    #elif (defined ST7735_Display)      // aridis
+      #include <TFT_eSPI.h>           // Remember to select the T_Display board in User_Setup_Select.h in TFT_eSPI library (135 x 240) 
+      TFT_eSPI display = TFT_eSPI();
+      #define SCR_W_PX      128       // OLED display width, in pixels - always define in portrait
+      #define SCR_H_PX      160       // OLED display height, in pixels
+      #define SCR_ORIENT  1
+      
+      #if (SCR_ORIENT == 0)           // portrait
+        #define TEXT_SIZE     0                
+      #elif (SCR_ORIENT == 1)         // landscape
+        #define TEXT_SIZE     1                       
+      #endif 
+      #define SCR_BACKGROUND TFT_BLACK  
+    #endif     
+  //------------------------------------------------------------------ 
+
+
+
+
 
     #if (!(defined SCR_ORIENT) )
       #error please define a desired screen orientation,  0 portrait or 1 landscape for your board variant or display type
@@ -822,7 +872,6 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
     #endif   
 
 #endif
-  
 
 
   //================================================================================================= 
@@ -859,16 +908,16 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
 
 //#define Debug_All
 
-//#define Debug_Protocol
+#define Debug_Protocol
 //#define Debug_Baud
 
-//#define Debug_AzEl
+#define Debug_AzEl
 //#define Debug_Servos 
 
 //#define Debug_LEDs
 
 //#define Debug_boxCompass                           
-//#define Debug_Input
+#define Debug_Input
 //#define Debug_Mav_Buffer  
 
 //#define Debug_Mav_Heartbeat 
@@ -898,7 +947,7 @@ uint16_t  UDP_remotePort = 14550;   // Mav sendPort,  (default 14550) remote hos
 
 //#define Debug_FrPort_Stream
 //#define Debug_FPort_Buffer
-//#define Debug_boxGPS             // the GPS on the tracker box
+#define Debug_boxGPS             // the GPS on the tracker box
 //#define Debug_boxCompass         // The compass on the tracker box
 
 //#define Debug_Our_FC_Heartbeat
