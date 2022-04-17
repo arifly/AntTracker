@@ -19,7 +19,14 @@
  * along with u360gts.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+/*
+CRSF frame has the structure:
+<Device address> <Frame length> <Type> <Payload> <CRC>
+Device address: (uint8_t)
+Frame length:   length in  bytes including Type (uint8_t)
+Type:           (uint8_t)
+CRC:            (uint8_t), crc of <Type> and <Payload>
+*/
 #define BROADCAST_ADDRESS              0x00
 #define RADIO_ADDRESS                  0xEA
 #define GPS_ID                         0x02
@@ -42,12 +49,26 @@
 //int16_t Yaw angle ( rad / 10000 
 //CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
 #define LINK_STAT_ID                  0x14
-//uint8_t Uplink RSSI Ant. 1 ( dBm * -1 )
-//uint8_t Uplink RSSI Ant. 2 ( dBm * -1 )
-// uint8_t Uplink Package success rate / Link quality ( % 
+ /* 0x14 Link statistics
+ * Payload:
+ *
+ * uint8_t Uplink RSSI Ant. 1 ( dBm * -1 )
+ * uint8_t Uplink RSSI Ant. 2 ( dBm * -1 )
+ * uint8_t Uplink Package success rate / Link quality ( % )
+ * int8_t Uplink SNR ( db )
+ * uint8_t Diversity active antenna ( enum ant. 1 = 0, ant. 2 )
+ * uint8_t RF Mode ( enum 4fps = 0 , 50fps, 150hz)
+ * uint8_t Uplink TX Power ( enum 0mW = 0, 10mW, 25 mW, 100 mW, 500 mW, 1000 mW, 2000mW )
+ * uint8_t Downlink RSSI ( dBm * -1 )
+ * uint8_t Downlink package success rate / Link quality ( % )
+ * int8_t Downlink SNR ( db )
+ * Uplink is the connection from the ground to the UAV and downlink the opposite direction.
+ */
 #define TELEMETRY_RX_PACKET_SIZE       128
 
-
+const char *crsfActiveAntenna[2] = {"ANTENNA 1", "ANTENNA 2"};
+const char *crsrRfMode[3] = {"4 HZ", "50 HZ", "150_HZ"};
+const char *csrfRfPower[7] = {"0 mW", "10 mW", "25 mW", "100 mW", "500 mW", "1000 mW", "2000 mW" };
 
 uint8_t crc8(const uint8_t * ptr, uint32_t len);
 
@@ -59,8 +80,10 @@ uint8_t posCount = 0;
 uint16_t telemetry_voltage;
 uint32_t telemetry_lat;
 uint32_t telemetry_lon;
+float telemetry_lat_f;
+float telemetry_lon_f;
 float telemetry_speed;
-uint16_t telemetry_course;
+float telemetry_course;
 uint16_t telemetry_alt;
 uint16_t telemetry_sats;
 int telemetry_failed_cs;
@@ -74,8 +97,10 @@ uint16_t telemetry_bat_remain;
 uint8_t telemetry_rssi_ant1;
 uint8_t telemetry_rssi_ant2;
 uint8_t telemetry_rssi_lq;
-uint8_t telemetry_rssi_divers;
-uint8_t telemetry_rssi_rfmode;
+uint8_t telemetry_rssi_snr;
+char*  telemetry_rssi_divers;
+char* telemetry_rssi_rfmode;
+char* telemetry_rssi_rfpower;
 
 char* telemetry_fmode;
 
@@ -117,35 +142,26 @@ void CRSF_Receive() {
         return;
       }
 
-      cur.lat = telemetry_lat / 1E7;
-      cur.lon = telemetry_lon / 1E7;
-      cur.alt = telemetry_alt / 1E2;
+      cur.lat = telemetry_lat_f;
+      cur.lon = telemetry_lon_f;
+      cur.alt = telemetry_alt;
       cur.hdg = telemetry_course;
       cur.alt_ag = telemetry_alt;
       hud_grd_spd = telemetry_speed;
       hud_num_sats = telemetry_sats;
       // hom.lat: 51.1876411  hom.lon: 6.6915321  hom.alt: 48.1  hdop: 1.1  UTC Time:14:34:37
-
       //iSpd = telemetry_speed;
       //iSat = telemetry_sats;
       //hud_roll, hud_pitch, cur.hdgmm hud_rssi, motArmed, , hud_climb, pt_home_dist, pt_home_angle, hud_bat1_volts, hud_bat1_amps, hud_bat1_mAh, 
-      
       //cur.alt_ag - alt anove home,  
-      
-
       //iFix = Fix;
    } 
 
 
    
 void CRSF_Decode(uint8_t *data, size_t length) {
-  //Serial.println("csrf_d1");
-  //uint8_t data[128] 
-  //Serial.print("csrf_data1ength: ");
-  //Serial.println((uint16_t) length);
   if ((uint16_t) length > 4) {
     memcpy(telemetryRxBuffer, data, length);
-    //telemetryRxBuffer = data;
     processCrossfireTelemetryFrame();
   } else { 
     Serial.print("Drop data1ength: ");
@@ -153,11 +169,16 @@ void CRSF_Decode(uint8_t *data, size_t length) {
     return; 
   }
 
-      cur.lat = telemetry_lat / 1E7;
-      cur.lon = telemetry_lon / 1E7;
+      cur.lat = telemetry_lat_f;
+      cur.lon = telemetry_lon_f;
       cur.alt = telemetry_alt;
       cur.hdg = telemetry_course;
-      //cur.alt_ag = telemetry_alt;
+      cur.alt = telemetry_alt;
+      if (finalHomeStored) {
+         cur.alt_ag = cur.alt - hom.alt;
+      } else {
+          cur.alt_ag = 0;
+      }    
       hud_grd_spd = telemetry_speed;
       hud_num_sats = telemetry_sats;
       hud_bat1_volts = telemetry_voltage;
@@ -243,24 +264,44 @@ void processCrossfireTelemetryFrame()
   switch(id) {
     case GPS_ID:
       if (getCrossfireTelemetryValue(4, 3, &value)){
-        telemetry_lat = (uint32_t) (value);
+        uint32_t telemetry_lat_tmp = (uint32_t) (value);
+        telemetry_lat_f = (float) (telemetry_lat_tmp / 1E7);
         if(posCount == 0) posCount++;
       }
       if (getCrossfireTelemetryValue(4, 7, &value)){
-        telemetry_lon = (uint32_t) (value);
+        //telemetry_lon = (uint16_t) (value / 10);
+        uint32_t telemetry_lon_tmp = (uint32_t) (value);
+        //telemetry_lon_f = (float) (value / 1E7);
+        telemetry_lon_f = (float) (telemetry_lon_tmp / 1E7);
         if(posCount == 1) posCount++;
       }
-      if (getCrossfireTelemetryValue(2, 11, &value))
-        telemetry_speed = (float) (value / 100);
-      if (getCrossfireTelemetryValue(2, 13, &value))
-        telemetry_course = (uint16_t) (value / 100);
+      if (getCrossfireTelemetryValue(2, 11, &value)) {
+        uint16_t telemetry_speed_tmp = (uint16_t) (value);
+        float tmpspeed = telemetry_speed_tmp;
+        telemetry_speed =  tmpspeed / 10;
+//        Serial.printf("Speed: %.2f\n", telemetry_speed); 
+//        Serial.printf("SpeedN: %d\n", value); 
+      }
+        
+      if (getCrossfireTelemetryValue(2, 13, &value)) {
+        uint16_t telemetry_course_tmp = (uint16_t) (value);
+        float tmpcourse = telemetry_course_tmp;
+        telemetry_course = tmpcourse / 1000;
+//        Serial.printf("Course: %.2f\n", telemetry_course); 
+//        Serial.printf("CourseN: %d - \n", value); 
+//        Serial.println(telemetry_course,2); 
+//        Serial.println(telemetry_course); 
+      }
       if (getCrossfireTelemetryValue(2, 15, &value)){
         telemetry_alt = (uint16_t) (value - 1000);
         gotAlt = true;
       }
       if (getCrossfireTelemetryValue(1, 17, &value))
         telemetry_sats = (uint16_t) value;
+        //Serial.printf("Sats/Lat/Lon/Alt: %d %d %d %d\n", telemetry_sats, telemetry_lat, telemetry_lon, telemetry_alt);
+      
       break;
+
     case BAT_ID:
       if (getCrossfireTelemetryValue(2, 3, &value))
         telemetry_voltage = (uint16_t) value;
@@ -270,20 +311,20 @@ void processCrossfireTelemetryFrame()
         telemetry_bat_capacity = (uint16_t) value;
       if (getCrossfireTelemetryValue(1, 10, &value))
         telemetry_bat_remain = (uint16_t) value;
-      //Log.printf("Volt/Current/Capac/Remain: %d %d %d %d\n", telemetry_voltage, telemetry_current, telemetry_bat_capacity, telemetry_bat_remain);
-      
+//      Serial.printf("Volt/Current/Capac/Remain: %d %d %d %d\n", telemetry_voltage, telemetry_current, telemetry_bat_capacity, telemetry_bat_remain);
       break;
 
      case ATTI_ID:
-       Log.printf("atti");
+       //Serial.printf("atti");
        if (getCrossfireTelemetryValue(2, 3, &value))
         telemetry_att_pitch = (uint16_t) (value / 10);
        if (getCrossfireTelemetryValue(2, 5, &value))
         telemetry_att_pitch = (uint16_t) (value / 10);
        if (getCrossfireTelemetryValue(2, 7, &value))
         telemetry_att_yaw = (uint16_t) (value / 10);
-       Log.printf("Pit/Rol/Yaw: %d %d %d\n", telemetry_att_pitch, telemetry_att_pitch, telemetry_att_yaw);
+       //Serial.printf("Pit/Rol/Yaw: %d %d %d\n", telemetry_att_pitch, telemetry_att_pitch, telemetry_att_yaw);
        break;
+       
 
      case LINK_STAT_ID:
        //Serial.println("Link");
@@ -293,20 +334,37 @@ void processCrossfireTelemetryFrame()
         telemetry_rssi_ant2 = (uint8_t) (value - 1);
        if (getCrossfireTelemetryValue(1, 5, &value))
         telemetry_rssi_lq = (uint8_t) (value);
-       //Log.printf("Ant1/Ant2/LQ: %d %d %d\n", telemetry_rssi_ant1, telemetry_rssi_ant2, telemetry_rssi_lq);
-       break;
- 
+       if (getCrossfireTelemetryValue(1, 6, &value))
+        telemetry_rssi_snr = (int8_t) (value);
+       if (getCrossfireTelemetryValue(1, 7, &value)) {
+          uint8_t rfantidx = (uint8_t) (value);
+          telemetry_rssi_divers = (char*) crsfActiveAntenna[rfantidx];  
+       }
+       if (getCrossfireTelemetryValue(1, 8, &value)) {
+          uint8_t rfidx = (uint8_t) (value);
+          telemetry_rssi_rfmode = (char*) crsrRfMode[rfidx];  
+       }
+       if (getCrossfireTelemetryValue(1, 9, &value)) {
+          uint8_t rfpowidx = (uint8_t) (value);
+          telemetry_rssi_rfpower = (char*) csrfRfPower[rfpowidx];  
+       }
+         //Serial.printf("Ant1/Ant2/LQ/SNR: %d %d %d  %d ", telemetry_rssi_ant1, telemetry_rssi_ant2, telemetry_rssi_lq, telemetry_rssi_snr);
+         //Serial.println(telemetry_rssi_divers);
+         //Serial.printf("SNR/Dive/: %d %d %d\n", telemetry_rssi_snr, telemetry_rssi_divers);
+         //Serial.printf("RfMode: %s  RfPower: %s\n", telemetry_rssi_rfmode, telemetry_rssi_rfpower);
+      break;
+
+
      case FMODE_ID:
-        Log.println("FMode");
-        if (getCrossfireTelemetryValue(3, 3, &value)) {
-          size_t textLength = min<int>(16, telemetryRxBuffer[1]);
-          Serial.printf("Textlength: %d\n", textLength);
-          telemetryRxBuffer[textLength] = '\0';
-          telemetry_fmode = (char*) telemetryRxBuffer + 3;
-          Log.print("fmode: ");
-          Log.println(telemetry_fmode);
+        if (getCrossfireTelemetryValue(2, 3, &value)) {
+            auto textLength = min<int>(16, telemetryRxBuffer[1]);
+            telemetryRxBuffer[textLength] = '\0';
+            telemetry_fmode = (char*) telemetryRxBuffer + 3;
+//            Serial.print("fmode: ");
+//            Serial.println(telemetry_fmode);
         }
         break;
+        
     }
 
   

@@ -135,6 +135,19 @@
    typedef enum frport_type_set { f_none = 0, f_port1 = 1, f_port2 = 2, s_port = 3, f_auto = 4} frport_t;  
 
    typedef enum polarity_set { idle_low = 0, idle_high = 1, no_traffic = 2 } pol_t;    
+
+  typedef enum {
+      ALIGN_DEFAULT = 0,                                      // driver-provided alignment
+      CW0_DEG = 1,
+      CW90_DEG = 2,
+      CW180_DEG = 3,
+      CW270_DEG = 4,
+      CW0_DEG_FLIP = 5,
+      CW90_DEG_FLIP = 6,
+      CW180_DEG_FLIP = 7,
+      CW270_DEG_FLIP = 8
+  } Compass_Align_t;
+
     
     // Protocol determination
     uint32_t inBaud = 0;    // Includes flight GPS
@@ -337,12 +350,13 @@
  float RadToDeg(float);
  uint32_t getBaud(uint8_t);
 
- 
 //***************************************************
 // The remote service we wish to connect to.
 static BLEUUID serviceUUID("0000fff0-0000-1000-8000-00805f9b34fb");
 // The characteristic of the remote service we are interested in.
 static BLEUUID    charUUID("0000fff6-0000-1000-8000-00805f9b34fb");
+// change this part                                   ----------
+
 
 static bool doConnect = false;
 static bool connected = false;
@@ -742,7 +756,7 @@ void setup() {
   #if defined Test_Servos  
     Log.println("Testing Servos");
     LogScreenPrintln("Testing Servos");     
-    //TestServos();  // Fine tune MaxPWM and MinPWM in config.h to achieve expected movement limits, like 0 and 180
+    TestServos();  // Fine tune MaxPWM and MinPWM in config.h to achieve expected movement limits, like 0 and 180
   #endif  
 
 // ======================== Setup Serial ==============================

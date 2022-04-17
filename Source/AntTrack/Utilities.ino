@@ -1604,3 +1604,47 @@ void WiFiEventHandler(WiFiEvent_t event)  {
      if (ang > 359) ang -= 360;
      return ang;
    }     
+
+   //================================================================================================= 
+  //                              S E N S O R    A L I G N M E N T
+  //=================================================================================================
+  // params: 
+  // unit8_t rotation -> rotation enum definition value, fe CW180_DEG
+//  int applySensorAlignment(int16_t val_x, int16_t val_y, uint8_t rotation) {
+//    extern MagVals_Aligned magaligned;
+//    
+//    switch (rotation) {
+//    default:
+//    case CW0_DEG:
+//    case ALIGN_DEFAULT:
+//        case CW90_DEG:
+//            magaligned.aligned_x = val_y;
+//            magaligned.aligned_y = -val_x;
+//            break;
+//        case CW180_DEG:
+//            magaligned.aligned_x = -val_x;
+//            magaligned.aligned_y = -val_y;
+//            break;
+//        case CW270_DEG:
+//            magaligned.aligned_x = -val_y;
+//            magaligned.aligned_y = val_x;
+//            break;
+//        case CW0_DEG_FLIP:
+//            magaligned.aligned_x = -val_x;
+//            magaligned.aligned_y = val_y;
+//            break;
+//        case CW90_DEG_FLIP:
+//            magaligned.aligned_x = val_y;
+//            magaligned.aligned_y = val_x;
+//            break;
+//        case CW180_DEG_FLIP:
+//            magaligned.aligned_x = val_x;
+//            magaligned.aligned_y = -val_y;
+//            break;
+//        case CW270_DEG_FLIP:
+//            magaligned.aligned_x = -val_y;
+//            magaligned.aligned_y = -val_x;
+//            break;
+//    }
+//    return  magaligned;
+//  }

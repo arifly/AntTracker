@@ -20,8 +20,10 @@
 
 #if (Heading_Source  == 3) || (Heading_Source  == 4) // Tracker_Compass or (GPS + Compass)
 
-  #define DECLINATION  2.39 // In degrees   http://www.magnetic-declination.com/ 
-
+    #if !(defined Compass_Declination)
+    #define Compass_Declination  -18.9 // In degrees   http://www.magnetic-declination.com/ 
+  #endif
+  
   #if defined HMC5883L  
     #include <Adafruit_Sensor.h>
     #include <Adafruit_HMC5883_U.h>
@@ -99,7 +101,24 @@
   #if defined HMC5883L
     sensors_event_t event; 
     mag.getEvent(&event);
-    float val = 180/M_PI * atan2(event.magnetic.y, event.magnetic.x);  // Degrees   
+    struct MagVals_Aligned {
+      int16_t aligned_y;
+      int16_t aligned_x;
+      };
+//    #if defined Compass_Rotation
+//      Compass_Align_t magAlign = Compass_Rotation;
+//      //magAlign = Compass_Rotation;
+//      MagVals_Aligned magaligned = applySensorAlignment(event.magnetic.y, event.magnetic.x, magAlign); 
+//      float val = 180/M_PI * atan2(magaligned.aligned_x, magaligned.aligned_y);  // Degrees   
+//    #else
+      int16_t swap_y = -event.magnetic.y; 
+      int16_t swap_x = -event.magnetic.x;
+       float val = 180/M_PI * atan2(swap_x, swap_y);  // Degrees   
+//      float val = 180/M_PI * atan2(event.magnetic.y, event.magnetic.x);  // Degrees  
+//    #endif
+    
+
+    
     
   #elif defined QMC5883L 
     int16_t x,y,z;           // Raw compass output values
@@ -109,14 +128,25 @@
       float val = 180/M_PI * atan2((float)(x-offx),(float)(y-offy));  // Degrees    
   #endif
       
-      val += DECLINATION;  // Add magnetic declination
+      val += Compass_Declination;  // Add magnetic declination
       fHeading = (float)wrap360((uint16_t)val);
+
+      //#if defined Compass_Rotation
+      //  fHeading = applySensorAlignment(fHeading, Compass_Align);
+      //#endif
+//    int res = 0;
+//    res = fHeading + 90;
+//    if (res > 360) {
+//      res = res - 360;
+//    }
+//    fHeading = res;
+    
   
       #if defined Debug_All || defined Debug_boxCompass
         // Display the results (magnetic vector values are in micro-Tesla (uT)) */
-        // Log.print("x: "); Log.print(x); Log.print("  ");
-        // Log.print("y: "); Log.print(y); Log.print("  ");
-        // Log.print("z: "); Log.print(z); Log.print("  ");Log.println("uT");
+//         Log.print("x: "); Log.print(event.magnetic.x); Log.print("  ");
+//         Log.print("y: "); Log.print(swap_y); Log.print("  ");
+//         Log.print("z: "); Log.print(event.magnetic.z); Log.print("  ");Log.println("uT");
         Log.print("Heading = "); Log.println(fHeading,0); 
       #endif 
         
@@ -204,34 +234,8 @@
   
   void QMC5883L_softReset(){
     I2C_write_AddrDev_AddrReg_Byte(QMC5883L_ADDR, 0x0A,0x80);
-  }
-
-
-
-
-
-
-
-
-
-  
+  }  
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   //====================================================
   #if  defined HMC5883L
