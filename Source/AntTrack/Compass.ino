@@ -111,10 +111,16 @@
 //      MagVals_Aligned magaligned = applySensorAlignment(event.magnetic.y, event.magnetic.x, magAlign); 
 //      float val = 180/M_PI * atan2(magaligned.aligned_x, magaligned.aligned_y);  // Degrees   
 //    #else
-      int16_t swap_y = -event.magnetic.y; 
-      int16_t swap_x = -event.magnetic.x;
-       float val = 180/M_PI * atan2(swap_x, swap_y);  // Degrees   
-//      float val = 180/M_PI * atan2(event.magnetic.y, event.magnetic.x);  // Degrees  
+//      int16_t swap_y = -event.magnetic.y; 
+//      int16_t swap_x = -event.magnetic.x;
+//       float val = 180/M_PI * atan2(swap_x, swap_y);  // Degrees   
+      float val = 180/M_PI * atan2(event.magnetic.y, event.magnetic.x);  // Degrees  
+      int res = 0;
+      res = val + 90;
+      if (res > 360) {
+        res = res - 360;
+      }
+      val = (float) res;
 //    #endif
     
 
@@ -125,7 +131,13 @@
     int16_t offx = 0;        //calibration offsets (future)
     int16_t offy = 0;  
     if (getQMC5883L(&x, &y, &z) ) {
-      float val = 180/M_PI * atan2((float)(x-offx),(float)(y-offy));  // Degrees    
+      float val = 180/M_PI * atan2((float)(x-offx),(float)(y-offy));  // Degrees 
+      int res = 0;
+      res = val + 90;
+      if (res > 360) {
+        res = res - 360;
+      }
+      val = (float) res;   
   #endif
       
       val += Compass_Declination;  // Add magnetic declination

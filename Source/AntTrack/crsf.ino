@@ -142,13 +142,13 @@ void CRSF_Receive() {
         return;
       }
 
-      cur.lat = telemetry_lat_f;
-      cur.lon = telemetry_lon_f;
-      cur.alt = telemetry_alt;
-      cur.hdg = telemetry_course;
-      cur.alt_ag = telemetry_alt;
-      hud_grd_spd = telemetry_speed;
-      hud_num_sats = telemetry_sats;
+//      cur.lat = telemetry_lat_f;
+//      cur.lon = telemetry_lon_f;
+//      cur.alt = telemetry_alt;
+//      cur.hdg = telemetry_course;
+//      cur.alt_ag = telemetry_alt;
+//      hud_grd_spd = telemetry_speed;
+//      hud_num_sats = telemetry_sats;
       // hom.lat: 51.1876411  hom.lon: 6.6915321  hom.alt: 48.1  hdop: 1.1  UTC Time:14:34:37
       //iSpd = telemetry_speed;
       //iSat = telemetry_sats;
@@ -164,45 +164,30 @@ void CRSF_Decode(uint8_t *data, size_t length) {
     memcpy(telemetryRxBuffer, data, length);
     processCrossfireTelemetryFrame();
   } else { 
-    Serial.print("Drop data1ength: ");
-    Serial.println((uint16_t) length);
+//    Serial.print("Drop data1ength: ");
+//    Serial.println((uint16_t) length);
+    Log.printf("BLE Packetlength: %d\n", length); 
+    //LogScreenPrintln("BLE Packetlength  fail");
     return; 
   }
 
-      cur.lat = telemetry_lat_f;
-      cur.lon = telemetry_lon_f;
-      cur.alt = telemetry_alt;
-      cur.hdg = telemetry_course;
-      cur.alt = telemetry_alt;
-      if (finalHomeStored) {
-         cur.alt_ag = cur.alt - hom.alt;
-      } else {
-          cur.alt_ag = 0;
-      }    
-      hud_grd_spd = telemetry_speed;
-      hud_num_sats = telemetry_sats;
-      hud_bat1_volts = telemetry_voltage;
-      hud_bat1_amps = telemetry_current;
-      hud_bat1_mAh = telemetry_bat_capacity;
-      hud_rssi = telemetry_rssi_lq;
+//      cur.lat = telemetry_lat_f;
+//      cur.lon = telemetry_lon_f;
+//      cur.alt = telemetry_alt;
+//      cur.hdg = telemetry_course;
+//      cur.alt = telemetry_alt;
+//      
+//      if (finalHomeStored) {
+//         cur.alt_ag = cur.alt - hom.alt;
+//      } else {
+//          cur.alt_ag = 0;
+//      }    
+//      hud_grd_spd = telemetry_speed;
+//      hud_num_sats = telemetry_sats;
+//      hud_bat1_volts = telemetry_voltage;
+//      hud_bat1_amps = telemetry_current;
+//      hud_bat1_mAh = telemetry_bat_capacity;
 
-//  Serial.println("csrf_d1_e");
-//  Serial.print("Volt: ");
-//  Serial.println((uint16_t) telemetry_voltage);
-//  Serial.print("Lat: ");
-//  Serial.println((uint16_t) (telemetry_lat)/1E7, 7);
-//  Serial.print("Lon: ");
-//  Serial.println((uint16_t) (telemetry_lon)/1E7, 7);
-//  Serial.print("Speed: ");
-//  Serial.println((float) telemetry_speed);
-//  Serial.print("Alt: ");
-//  Serial.println((uint16_t) (telemetry_alt)/1E3, 0);
-//  Serial.print("Sats: ");
-//  Serial.println((uint16_t) telemetry_sats);
-//
-//  Serial.print("Error: ");
-//  Serial.println((int) telemetry_failed_cs);
-//  Serial.print("PosCount: ");
 //  Serial.println((int) posCount);
   return;
 }
@@ -312,6 +297,11 @@ void processCrossfireTelemetryFrame()
       if (getCrossfireTelemetryValue(1, 10, &value))
         telemetry_bat_remain = (uint16_t) value;
 //      Serial.printf("Volt/Current/Capac/Remain: %d %d %d %d\n", telemetry_voltage, telemetry_current, telemetry_bat_capacity, telemetry_bat_remain);
+            
+      hud_bat1_volts = telemetry_voltage;
+      hud_bat1_amps = telemetry_current;
+      hud_bat1_mAh = telemetry_bat_capacity;
+
       break;
 
      case ATTI_ID:
@@ -352,6 +342,7 @@ void processCrossfireTelemetryFrame()
          //Serial.println(telemetry_rssi_divers);
          //Serial.printf("SNR/Dive/: %d %d %d\n", telemetry_rssi_snr, telemetry_rssi_divers);
          //Serial.printf("RfMode: %s  RfPower: %s\n", telemetry_rssi_rfmode, telemetry_rssi_rfpower);
+       hud_rssi = telemetry_rssi_lq;
       break;
 
 
@@ -366,13 +357,31 @@ void processCrossfireTelemetryFrame()
         break;
         
     }
-
-  
+  hbGood = true;
+  hud_num_sats = telemetry_sats;
   if(posCount == 2 ) {
     posCount = 0;
-    gotFix = true;
-    new_GPS_data = true;   
-    gpsGood = hbGood = true;
+   //if ((!(telemetry_lat_f == 0)) && (!(telemetry_lon_f == 0))) {
+      gpsGood=1;
+      new_GPS_data = true;
+      cur.lon = telemetry_lon_f;
+      cur.lat = telemetry_lat_f;
+      cur.hdg = telemetry_course;
+      hud_grd_spd = telemetry_speed;
+    //}
+    if ( telemetry_sats > 5 ) {
+      gotFix = true;
+      cur.alt = telemetry_alt;
+      cur.alt_ag = cur.alt - hom.alt;
+      if (cur.alt_ag < 0) { cur.alt_ag = 0; }
+    }
+     
+//    if (finalHomeStored) {
+//       cur.alt_ag = cur.alt - hom.alt;
+//    } else {
+//        cur.alt_ag = 0;
+//    }    
+
     if (gpsGood) gpsGood_millis = millis();     // Time of last good GPS packet 
         hbGood_millis= millis();                    // good GPS data is equivalent to a mavlink heartbeat
     //Serial.printf("---Sats/Lat/Lon/Alt: %d %d %d %d\n", telemetry_sats, telemetry_lat, telemetry_lon, telemetry_alt);

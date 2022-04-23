@@ -351,7 +351,7 @@
  uint32_t getBaud(uint8_t);
 
 //***************************************************
-// The remote service we wish to connect to.
+// The remote service we wish to connect to.          ----------
 static BLEUUID serviceUUID("0000fff0-0000-1000-8000-00805f9b34fb");
 // The characteristic of the remote service we are interested in.
 static BLEUUID    charUUID("0000fff6-0000-1000-8000-00805f9b34fb");
@@ -365,7 +365,7 @@ static bool bluetooth = false;
 static bool wlan = false;
 
 static BLERemoteCharacteristic* pRemoteCharacteristic;
-static BLEAdvertisedDevice* myDevice;
+static BLEAdvertisedDevice* myDevice; 
 
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
@@ -378,9 +378,9 @@ static void notifyCallback(
     //Log.println(length);
     //Log.print("data: ");
     //Log.println((char*)pData);
-
+    //Log.println("incsrf_exit");
     CRSF_Decode(pData, length);
-    ////Log.println("csrf_exit");
+    //Log.println("csrf_exit");
     return;
     
 }
@@ -391,11 +391,16 @@ class MyClientCallback : public BLEClientCallbacks {
   void onDisconnect(BLEClient* pclient) {
     connected = false;
     Log.println("onDisconnect");
+    LogScreenPrintln("BLE Disconnect");
     doScan = true;
     #if defined NEOPIXEL
-    // led 3 (BLEemote gps) red
-      wsled.setPixelColor(4, wsled.Color(150, 0, 0)); 
+    // led 2 (remote gps) red
+      wsled.setPixelColor(2, wsled.Color(150, 0, 0)); 
+    // led 3 (BLE) red
+      wsled.setPixelColor(3, wsled.Color(150, 0, 0)); 
+      wsled.show();
     #endif
+    return;
   }
 };
 
@@ -410,13 +415,22 @@ bool connectToServer() {
     // Connect to the remove BLE Server.
     pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
     Log.println(" - Connected to server");
-
+    #if defined NEOPIXEL
+     // led 3 (BLE) yellow
+      wsled.setPixelColor(3, wsled.Color(150, 150, 0)); 
+      wsled.show(); 
+    #endif
     // Obtain a reference to the service we are after in the remote BLE server.
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
     if (pRemoteService == nullptr) {
-      //Log.print("Failed to find our service UUID: ");
-      //Log.println(serviceUUID.toString().c_str());
+      Log.print("Failed to find our service UUID: ");
+      Log.println(serviceUUID.toString().c_str());
       pClient->disconnect();
+     #if defined NEOPIXEL
+     // led 3 (BLE) yellow
+      wsled.setPixelColor(3, wsled.Color(0, 150, 0)); 
+      wsled.show(); 
+    #endif
       return false;
     }
     Log.println(" - Found our service");
@@ -425,6 +439,8 @@ bool connectToServer() {
     pRemoteCharacteristic = pRemoteService->getCharacteristic(charUUID);
     if (pRemoteCharacteristic == nullptr) {
       //Log.print("Failed to find our characteristic UUID: ");
+      Log.println("BLE characteristic UUID fail");
+      LogScreenPrintln("BLE BLE characteristic fail");
       //Log.println(charUUID.toString().c_str());
       pClient->disconnect();
       return false;
@@ -432,7 +448,8 @@ bool connectToServer() {
     Log.println(" - Found our characteristic");
     #if defined NEOPIXEL
     // led 3 (BLEemote gps) red
-      wsled.setPixelColor(4, wsled.Color(0, 150, 0)); 
+      wsled.setPixelColor(3, wsled.Color(0, 150, 0)); 
+      wsled.show();
     #endif
 
     // Read the value of the characteristic.
@@ -505,9 +522,13 @@ void setup() {
     Log.printf("Setting up WS2812 LED  LEDs:%u  PIN:%u\n", NUMPIXELS, WSLED_PIN); 
     wsled.begin(); 
     wsled.clear();
-    // led 0 (power) green
-    wsled.setPixelColor(1, wsled.Color(0, 150, 0)); 
+    // led 0 (power) green // led 1 (boxgps) green  // led 2 (remote gps) green
+    //wsled.setPixelColor(1, wsled.Color(0, 150, 0)); 
     wsled.setPixelColor(0, wsled.Color(0, 150, 0)); 
+    wsled.setPixelColor(1, wsled.Color(150, 0, 0)); 
+    wsled.setPixelColor(2, wsled.Color(150, 0, 0)); 
+    wsled.setPixelColor(3, wsled.Color(150, 0, 0)); 
+    wsled.show();
   #endif
 
 
@@ -734,13 +755,13 @@ void setup() {
     boxmagGood = initialiseCompass();  // Also checks if we have a compass on the Tracker 
 
 
-    #if defined Debug_All || defined Debug_boxCompass
-      Log.println("Display tracker heading for 20 seconds");
-      for (int i=1; i<=20;i++) {
-        getTrackerboxHeading();
-        delay(1000);
-      }
-    #endif  
+//    #if defined Debug_All || defined Debug_boxCompass
+//      Log.println("Display tracker heading for 20 seconds");
+//      for (int i=1; i<=20;i++) {
+//        getTrackerboxHeading();
+//        delay(1000);
+//      }
+//    #endif  
  
   #endif
 
@@ -756,7 +777,7 @@ void setup() {
   #if defined Test_Servos  
     Log.println("Testing Servos");
     LogScreenPrintln("Testing Servos");     
-    TestServos();  // Fine tune MaxPWM and MinPWM in config.h to achieve expected movement limits, like 0 and 180
+    //TestServos();  // Fine tune MaxPWM and MinPWM in config.h to achieve expected movement limits, like 0 and 180
   #endif  
 
 // ======================== Setup Serial ==============================
@@ -1018,6 +1039,12 @@ void setup() {
         pBLEScan->setWindow(449);
         pBLEScan->setActiveScan(true);
         pBLEScan->start(5, false);
+        #if defined NEOPIXEL
+           // led 3 (BLE) blue
+          wsled.setPixelColor(3, wsled.Color(0, 0, 150)); 
+          wsled.show();
+        #endif
+
      #endif // end BLE
      
   #endif // ESP32
@@ -1028,21 +1055,9 @@ void setup() {
 //===========================================================================================
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 //===========================================================================================
 void loop() {            
-  
+
   #if (Telemetry_In == 1)         // Bluetooth
     Mavlink_Receive();
   #endif
@@ -1079,23 +1094,31 @@ void loop() {
         if (connectToServer()) {
           Serial.println("We are now connected to the BLE Server.");
         } else {
-          Serial.println("We have failed to connect to the server; there is nothin more we will do.");
+          Serial.println("We have failed to connect to the server; ");
         }
         doConnect = false;
       }
       if (connected) {
-        //String newValue = "Time since boot: " + String(millis()/1000);
-        // Log.println("Setting new characteristic value to \"" + newValue + "\"");
+        String newValue = "Time since boot: " + String(millis()/1000);
+        //Log.println("Setting new characteristic value to \"" + newValue + "\"");
+        pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
         bleSuGood = true;
       }
       else if (doScan) {
-        BLEDevice::getScan()->start(0);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
+        Log.println("BLE Restart - Scanning....");
+        LogScreenPrintln("BLE Restart - Scanning....");
+        BLEDevice::getScan()->start(5);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
+        #if defined NEOPIXEL
+           // led 3 (BLE) blue
+          wsled.setPixelColor(3, wsled.Color(0, 0, 150)); 
+          wsled.show();
+        #endif
       } else {
         doScan = true;
+        Log.println("BLE Restart - restart....");
+        LogScreenPrintln("BLE Restart - restart....");
       }
-      //if (bleSuGood) {  
-        //FrSky_Receive(PROTOCOL);
-      //}
+
   #endif
 
 
@@ -1127,7 +1150,8 @@ void loop() {
         GPS_Receive(); 
         break;
       case 9:    // CRSF
-        CRSF_Receive(); 
+        //CRSF_Receive(); 
+        Log.print(".");
         break;
 
  
@@ -1144,11 +1168,11 @@ void loop() {
           if(boxmagGood) {
             hom.hdg = getTrackerboxHeading();      // heading
             boxhdgGood = true;
-            //Log.print("_");
+            Log.print("_");
           }
           #if (Heading_Source == 4)
             getTrackerboxLocation();               // lat, lon alt
-            //Log.print("!");
+            Log.print("!");
           #endif  
         }
         //getTrackerboxLocation();
@@ -1308,8 +1332,6 @@ void loop() {
         millisStore = millis();
       }
       
-
-
 } // end of main loop
 //===========================================================================================
 //===========================================================================================
@@ -1449,36 +1471,51 @@ void ServiceTheStatusLed() {
     Log.println(finalHomeStored);
  #endif
 
+ #if defined NEOPIXEL
+  if (boxgpsGood) {
+     // led 1 (box gps) green
+     wsled.setPixelColor(1, wsled.Color(0, 150, 0)); 
+     wsled.show();
+  } else {
+     // led 1 (box gps) red
+     wsled.setPixelColor(1, wsled.Color(15, 0, 0)); 
+     wsled.show();
+  }
+ #endif
   if (gpsGood) {
     if ( (finalHomeStored) || ( (boxgpsGood) && boxmagGood) ) {
       ledState = HIGH;
       #if defined NEOPIXEL
-        // led 1 (boxgps) green
+        // led 2 (remote gps) green
         wsled.setPixelColor(2, wsled.Color(0, 150, 0)); 
+        wsled.show();
       #endif
     }
     else {
       BlinkLed(500);
       #if defined NEOPIXEL
-        // led 1 (boxgps) red
+        // led 2 (remote gps) red
         wsled.setPixelColor(2, wsled.Color(150, 0, 0)); 
+        wsled.show();
       #endif
     }
   }
   else {
      if (hbGood){
        BlinkLed(1300);
-       #if defined NEOPIXEL
-        // led 2 (remote gps) green
-        wsled.setPixelColor(3, wsled.Color(0, 150, 0)); 
-      #endif
+//       #if defined NEOPIXEL
+//        // led 2 (remote gps) green
+//        wsled.setPixelColor(2, wsled.Color(0, 150, 0)); 
+//        wsled.show();
+//      #endif
      } 
      else {
        ledState = LOW;
-       #if defined NEOPIXEL
-        // led 2 (remote gps) red
-        wsled.setPixelColor(3, wsled.Color(150, 0, 0)); 
-      #endif
+//       #if defined NEOPIXEL
+//        // led 2 (remote gps) red
+//        wsled.setPixelColor(3, wsled.Color(150, 0, 0)); 
+//        wsled.show();
+//      #endif
      }
   }
        
